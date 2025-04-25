@@ -2169,33 +2169,36 @@ class TelemetrixAIO:
 
         :returns: This method never returns
         """
+        try:
+            while True:
+                if self.shutdown_flag:
+                    break
+                try:
+                    if not self.ip_address:
+                        packet_length = await self.serial_port.read()
+                    else:
 
-        while True:
-            if self.shutdown_flag:
-                break
-            try:
+                        packet_length = ord(await self.sock.read())
+
+                except TypeError:
+                    continue
+
+                # get the rest of the packet
                 if not self.ip_address:
-                    packet_length = await self.serial_port.read()
+                    packet = await self.serial_port.read(packet_length)
                 else:
+                    packet = list(await self.sock.read(packet_length))
 
-                    packet_length = ord(await self.sock.read())
+                report = packet[0]
+                # print(report)
+                # handle all other messages by looking them up in the
+                # command dictionary
 
-            except TypeError:
-                continue
-
-            # get the rest of the packet
-            if not self.ip_address:
-                packet = await self.serial_port.read(packet_length)
-            else:
-                packet = list(await self.sock.read(packet_length))
-
-            report = packet[0]
-            # print(report)
-            # handle all other messages by looking them up in the
-            # command dictionary
-
-            await self.report_dispatch[report](packet[1:])
-            await asyncio.sleep(self.sleep_tune)
+                await self.report_dispatch[report](packet[1:])
+                await asyncio.sleep(self.sleep_tune)
+        except (serial.SerialException, asyncio.CancelledError):
+            # Port vanished or we’re shutting down — just exit the task.
+            return
 
     '''
     Report message handlers
