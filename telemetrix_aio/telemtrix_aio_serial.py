@@ -84,10 +84,11 @@ class TelemetrixAioSerial:
             # result = self.my_serial.write(bytes([ord(data)]))
             result = self.my_serial.write(bytes(data))
 
-        except serial.SerialException:
+        except serial.SerialException as e:
             # noinspection PyBroadException
-            loop = None
+            # loop = None
             await self.close()
+            raise e
             future.cancel()
             if self.close_loop_on_error:
                 loop = asyncio.get_event_loop()
@@ -109,96 +110,47 @@ class TelemetrixAioSerial:
                 else:
                     return future.result()
 
+
     async def read(self, size=1):
         """
-        This is an asyncio adapted version of pyserial read
-        that provides non-blocking read.
-
-        :return: One character
+        Non-blocking read that also propagates SerialException.
         """
-
-        # create an asyncio Future
-        future = asyncio.Future()
-
-        # create a flag to indicate when data becomes available
-        data_available = False
-
-        # wait for a character to become available and read from
-        # the serial port
         while True:
-            if not data_available:
-                # test to see if a character is waiting to be read.
-                # if not, relinquish control back to the event loop through the
-                # short sleep
+            try:
                 if not self.my_serial.in_waiting:
-                    await asyncio.sleep(self.sleep_tune*2)
+                    await asyncio.sleep(self.sleep_tune * 2)
+                    continue
 
-                # data is available.
-                # set the flag to true so that the future can "wait" until the
-                # read is completed.
-                else:
-                    data_available = True
-                    data = self.my_serial.read(size)
-                    # set future result to make the character available
-                    if size == 1:
-                        future.set_result(ord(data))
-                    else:
-                        future.set_result(list(data))
-            else:
-                # wait for the future to complete
-                if not future.done():
-                    await asyncio.sleep(self.sleep_tune)
-                else:
-                    # future is done, so return the character
-                    return future.result()
+                data = self.my_serial.read(size)
+                return ord(data) if size == 1 else list(data)
+
+            except serial.SerialException as e:
+                await self.close()
+                raise e
+
 
     async def read_until(self, expected=LF, size=None, timeout=1):
         """
-        This is an asyncio adapted version of pyserial read
-        that provides non-blocking read.
-
-        :return: Data delimited by expected
+        Read until *expected* byte or timeout; propagates SerialException.
         """
-
         expected = str(expected).encode()
-        # create an asyncio Future
-        future = asyncio.Future()
+        start_time = time.time()
 
-        # create a flag to indicate when data becomes available
-        data_available = False
-
-        if timeout:
-            self.start_time = time.time()
-
-        # wait for a character to become available and read from
-        # the serial port
         while True:
-            if not data_available:
-                # test to see if a character is waiting to be read.
-                # if not, relinquish control back to the event loop through the
-                # short sleep
+            try:
                 if not self.my_serial.in_waiting:
-                    if timeout:
-                        elapsed_time = time.time() - self.start_time
-                        if elapsed_time > timeout:
-                            return None
+                    if timeout and (time.time() - start_time) > timeout:
+                        return None
                     await asyncio.sleep(self.sleep_tune)
-                # data is available.
-                # set the flag to true so that the future can "wait" until the
-                # read is completed.
-                else:
-                    data_available = True
-                    data = self.my_serial.read_until(expected, size)
-                    # set future result to make the character available
-                    return_value = list(data)
-                    future.set_result(return_value)
-            else:
-                # wait for the future to complete
-                if not future.done():
-                    await asyncio.sleep(self.sleep_tune)
-                else:
-                    # future is done, so return the character
-                    return future.result()
+                    continue
+
+                data = self.my_serial.read_until(expected, size)
+                return list(data)
+
+            except serial.SerialException as e:
+                await self.close()
+                raise e
+
 
     async def reset_input_buffer(self):
         """
