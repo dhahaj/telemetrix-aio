@@ -2196,7 +2196,7 @@ class TelemetrixAIO:
 
                 await self.report_dispatch[report](packet[1:])
                 await asyncio.sleep(self.sleep_tune)
-        except (serial.SerialException, asyncio.CancelledError):
+        except (SerialException, asyncio.CancelledError):
             # Port vanished or we’re shutting down — just exit the task.
             return
 
