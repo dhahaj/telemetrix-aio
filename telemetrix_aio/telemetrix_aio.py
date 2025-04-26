@@ -264,7 +264,7 @@ class TelemetrixAIO:
             self.stepper_info_list.append(self.stepper_info.copy())
 
         print(f'TelemetrixAIO Version: {PrivateConstants.TELEMETRIX_AIO_VERSION}')
-        print(f'Copyright (c) 2018-2023 Alan Yorinks All rights reserved.\n')
+        # print(f'Copyright (c) 2018-2023 Alan Yorinks All rights reserved.\n')
 
         if autostart:
             self.loop.run_until_complete(self.start_aio())
@@ -305,7 +305,7 @@ class TelemetrixAIO:
             else:
                 if self.shutdown_on_exception:
                     await self.shutdown()
-                raise RuntimeError('No Arduino Found or User Aborted Program')
+                raise RuntimeError('No USB Device Found or User Aborted Program')
         # using tcp/ip
         else:
             self.sock = TelemetrixAioSocket(self.ip_address, self.ip_port, self.loop)
