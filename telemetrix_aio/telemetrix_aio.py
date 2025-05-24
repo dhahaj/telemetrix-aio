@@ -45,7 +45,8 @@ class TelemetrixAIO:
 
     # noinspection PyPep8,PyPep8
     def __init__(self, com_port=None,
-                 arduino_instance_id=1, arduino_wait=4,
+                 arduino_instance_id=None, 
+                 arduino_wait=4,
                  sleep_tune=0.0001, autostart=True,
                  loop=None, shutdown_on_exception=True,
                  close_loop_on_shutdown=True,
@@ -410,8 +411,12 @@ class TelemetrixAIO:
             if not i_am_here:
                 continue
 
-            # got an I am here message - is it the correct ID?
-            if i_am_here[2] == self.arduino_instance_id:
+            print(f'Received: {i_am_here}')
+
+            board_id = i_am_here[2]
+            if self.arduino_instance_id is None or board_id == self.arduino_instance_id:
+                # store whatever ID the board reports so the caller can use it later
+                self.arduino_instance_id = board_id
                 self.com_port = serial_port.com_port
                 return
 
@@ -434,13 +439,17 @@ class TelemetrixAIO:
         # provide time for the reply
         await asyncio.sleep(.1)
 
-        print(f'Searching for correct arduino_instance_id: {self.arduino_instance_id}')
+        # print(f'Searching for correct arduino_instance_id: {self.arduino_instance_id}')
         i_am_here = await self.serial_port.read(3)
 
         if not i_am_here:
-            print(f'ERROR: correct arduino_instance_id not found')
+            print(f"ERROR: No response from USB device")
 
-        print('Correct arduino_instance_id found')
+        print(f'Received: {i_am_here}')
+        print('Correct COM port found: {}'.format(self.com_port))
+
+        # Set the instance ID
+        self.arduino_instance_id = i_am_here[2]
 
     async def _get_firmware_version(self):
         """
